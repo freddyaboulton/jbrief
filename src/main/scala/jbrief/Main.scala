@@ -29,12 +29,12 @@ object Main extends App {
     val xa = Transactor.fromDriverManager[IO](
         "org.postgresql.Driver",     // driver classname
         "jdbc:postgresql:jbrief",     // connect URL (driver-specific)
-        "jbriefwriter",                  // user
-        "jbrief",                          // password
+        args(0),                  // user
+        args(1),                          // password
     )
 
     val browser = JsoupBrowser()
-    val doc = browser get ("http://www.j-archive.com/showgame.php?game_id=6540")
+    val doc = browser get (args(2))
 
     val contestant_elements: List[Element] = (doc >> elementList("p.contestants"))
 
