@@ -35,6 +35,7 @@ object Main extends App {
 
     val browser = JsoupBrowser()
     val doc = browser get (args(2))
+    val game_id = args(2).split("=")(1).toInt
 
     val contestant_elements: List[Element] = (doc >> elementList("p.contestants"))
 
@@ -57,7 +58,7 @@ object Main extends App {
 
     val clue_elements: List[Element] = (doc >> elementList("td.clue"))
 
-    val extract_clue = ClueExtractor.extract_question(contestant_names, 6442, _ : Element)
+    val extract_clue = ClueExtractor.extract_question(contestant_names, game_id, _ : Element)
 
     val clues = clue_elements.map(extract_clue)
 
@@ -78,50 +79,5 @@ object Main extends App {
     else {
         throw new RuntimeException(" One invalid turn or question was found")
     }
-
-    //println(clue_elements.map(ClueExtractor.extract_question(6442, _)))
-    //println(clue_elements.take(3))
-
-
-    /*
-    def convertToContestant(ids: List[Int], names: List[String]): List[Contestant] = {
-        (ids zip names) map { case (id, name) => Contestant(id, name)}
-    }
-
-    val contestant_info = (extract_player_ids(contestants),
-                           extract_names(contestants)).mapN(convertToContestant)
     
-    println(contestant_info)
-    */
-    
-    // // TODO: Remove the trailing (whose 1-day cash winnings ...)
-    // val homeTowns: List[String] = contestants.map(_.text.split("from")(1).trim)
-    
-    // // TODO: Remove the leading "a ...""
-    // val occupations: List[String] = contestants.map(_.text.split("from")(0)).map(_.split(",")(1).trim)
-
-    // val clues: List[Element] = (doc >> elementList("td.clue"))
-    
-    // val text = (clues(0) >> element("td.clue_text"))
-    // val clue_id = text.attrs.get("id")
-    // val clue_text = text.text
-    // val onmouse = parseString(clues(0) >> element("div") >> attr("onmouseover"))
-    // val answer = (onmouse >> element("em.correct_response")).map(_.text)
-
-    // val find_responders = (with_response_type: String, onMouse: Option[browser.DocumentType]) => for {
-    //     responders <- onmouse >> element("tr") >> elementList("td. " + with_response_type)
-    //     text = responders.map(_.text)
-    // } yield text
-
-    // val find_correct_responders = (onMouse: Option[browser.DocumentType]) => find_responders("correct", onMouse)
-    // val find_wrong_responders = (onMouse: Option[browser.DocumentType]) => find_responders("wrong", onMouse)
-
-    // val correct: Option[List[String]] = find_correct_responders(onmouse)
-    // val wrong: Option[List[String]] = find_wrong_responders(onmouse)
-
-    // val clue_header = clues(0) >> element("table.clue_header")
-    // val value = (clue_header >> element("td.clue_value")).text
-    // val clue_order_number = (clue_header >> element("td.clue_order_number")).text
-    
-
 }
