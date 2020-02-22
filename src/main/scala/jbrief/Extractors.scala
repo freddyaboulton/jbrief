@@ -43,12 +43,22 @@ object ContestantExtractor extends ParallelExtractor {
     val extract_last_name: ValidatedExtractor[Element, String] = 
         validate(get_name(1, _), "cannot extract last name.")
 
+    val _extract_hometown: (Element => String) = (element: Element) => {
+        val hometown = element.text.split("from")(1).trim
+    
+        if (hometown.contains("(")){
+            hometown.slice(0, hometown.indexOf("(") - 1)
+        }
+        
+        hometown
+    }
+
     val extract_hometown: ValidatedExtractor[Element, String] = 
-        validate(_.text.split("from")(1).trim, "Cannot extract hometowns.")
+        validate(_extract_hometown, "Cannot extract hometowns.")
 
-    val extract_occupation: ValidatedExtractor[Element, String] = 
-        validate(_.text.split("from")(0).split(",")(1).trim, "Cannot extract occupations")
-
+    val extract_occupation: ValidatedExtractor[Element, String] =
+        validate(_.text.split("from")(0).split(",")(1).trim, "Cannot extract occupation.")
+        
     val extract_player_id: ValidatedExtractor[Element, Int] =
     {
         val extractor = (contestant: Element) => (contestant >> element("a")).attrs.getOrElse("href", "").split("=")(1).toInt

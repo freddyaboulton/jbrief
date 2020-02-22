@@ -27,6 +27,7 @@ object Statements {
                                        $last_name,
                                        $hometown,
                                        $occupation)
+               ON CONFLICT DO NOTHING
             """.update.run.transact(xa).unsafeRunSync
     }
     

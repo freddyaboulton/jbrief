@@ -1,6 +1,6 @@
 package jbrief
 
-import net.ruippeixotog.scalascraper.browser.JsoupBrowser
+import net.ruippeixotog.scalascraper.browser.{JsoupBrowser, Browser}
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
@@ -33,9 +33,18 @@ object Main extends App {
         args(1),                          // password
     )
 
+    def find_todays_link(browser: Browser,
+                         current_season_link: String, todays_date: String): String = {
+        
+        val links = (browser.get(current_season_link)) >> elementList("a")
+        links.filter(_.text.contains(todays_date))(0).attrs("href")
+    }
+
     val browser = JsoupBrowser()
-    val doc = browser get (args(2))
-    val game_id = args(2).split("=")(1).toInt
+
+    val todays_link = find_todays_link(browser, args(2), args(3))
+    val doc = browser get (todays_link)
+    val game_id = todays_link.split("=")(1).toInt
 
     val contestant_elements: List[Element] = (doc >> elementList("p.contestants"))
 
