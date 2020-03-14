@@ -117,6 +117,9 @@ object ClueExtractor extends SequentialExtractor {
     val extract_answer: MonadicExtractor[Document, String] =
     toEither(document => (document >> element("em.correct_response")).text, "Cannot extract answer.")
 
+    val extract_fj_answer: MonadicExtractor[Document, String] = 
+    toEither(document => (document >> element("em")).text, "Cannot extract FJ Answer" )
+
     val is_daily_double: MonadicExtractor[Element, Boolean] =
     toEither(elem => (elem >?> element("td.clue_value_daily_double")).nonEmpty, "Cannot extract if is daily double.")    
     
@@ -157,6 +160,30 @@ object ClueExtractor extends SequentialExtractor {
     val find_wrong_responders: MonadicExtractor[Document, List[String]] =
     toEither(document => find_responders(document, "wrong"), "Cannot extract wrong responders.")
 
+    val _find_responders_fj: (Document) => List[String] = {
+        (mouseover: Document) => {
+            (mouseover >> elementList("tr")).grouped(2).map(
+                (elem_list: List[Element]) => elem_list(0) >> element("td") >> text 
+            ).toList
+        }
+    }
+
+    val find_responders_fj: MonadicExtractor[Document, List[String]] = toEither(_find_responders_fj, "Cannot extract fj tables")
+
+    val _find_wagers_fj: (Document) => List[Float] = {
+        (mouseover: Document) => {
+            (mouseover >> elementList("tr")).grouped(2).map( (elem_list: List[Element]) => {
+                val wager_num = (elem_list(1) >> element("td") >> text).replace(",", "").replace("$", "")
+                val was_wrong = (elem_list(0) >> element("td")).attrs("class") == "wrong"
+                if (was_wrong) -wager_num.toFloat
+                else wager_num.toFloat
+                }   
+            ).toList
+        }
+    }
+
+    val find_values_fj: MonadicExtractor[Document, List[Float]] = toEither(_find_wagers_fj, "Cannot extract fj wagers")
+
     val get_turns = (contestant_name: Map[String, Int],
                      game_id: Int,
                      question_id: String,
@@ -175,7 +202,7 @@ object ClueExtractor extends SequentialExtractor {
                         correct ++ incorrect
                     }
     
-    val extract_question: (Map[String, Int], Int, Element) => ExtractionResult[(List[Turn], Question)] = {
+    val extract_regular_question: (Map[String, Int], Int, Element) => ExtractionResult[(List[Turn], Question)] = {
         (contestant_name: Map[String, Int], game_id: Int, element: Element) => for {
             mouse_over_text <- extract_mouse_over(element)
             mouse_over <- convert_to_document(mouse_over_text)
@@ -194,7 +221,42 @@ object ClueExtractor extends SequentialExtractor {
                                incorrect_responders),
                     Question(game_id, clue_id, clue_text, answer, is_dd, false))
         }
-    
 
+    val extract_fj_question: (Map[String, Int], Int, Int, Element) => ExtractionResult[(List[Turn], Question)] = {
+        (contestant_name: Map[String, Int], game_id: Int, previous_clue_number: Int, element: Element) => for {
+            mouse_over_text <- extract_mouse_over(element)
+            mouse_over <- convert_to_document(mouse_over_text)
+            clue <- extract_clue(element)
+            clue_id <- extract_clue_id(clue)
+            clue_text <- extract_clue_text(clue)
+            answer <- extract_fj_answer(mouse_over)
+            responders <- find_responders_fj(mouse_over)
+            values <- find_values_fj(mouse_over)
+            } yield (responders zip values map {
+                        case (name: String, wager: Float) => Turn(game_id, contestant_name.getOrElse(name, 0),
+                                                                  clue_id, previous_clue_number + 1, wager)
+                    }, 
+                    Question(game_id, clue_id, clue_text, answer, false, true))
+        }
+    
+}
+
+object Utility {
+
+    def update_turn(n_single_jeopardy: Int, t: Turn) = {
+        Turn(t.game_id, t.contestant_id, t.question_id,
+             t.clue_order_number + n_single_jeopardy,
+             t.change_in_score)
+    }
+
+    def update_clue_order_number(n_single_jeopardy: Int)(turns: List[Turn], question: Question) = {
+        if (question.question_id.contains("DJ")) {
+            (turns.map(update_turn(n_single_jeopardy, _)), question)
+        }
+        else {
+            (turns, question)
+        }
+        
+    }
 }
 

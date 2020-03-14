@@ -8,3 +8,5 @@ final case class Question(game_id: Int, question_id: String, text: String, answe
 
 final case class Turn(game_id: Int, contestant_id: Int, question_id: String,
                       clue_order_number: Int, change_in_score: Float)
+
+final case class Date(game_id: Int, date: String)
