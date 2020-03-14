@@ -57,8 +57,7 @@ object Main extends App {
     val insert_contestants = Statements.insertContestant(xa)(_)
     val insert_turn = Statements.insertTurn(xa)(_)
     val insert_question = Statements.insertQuestion(xa)(_)
-
-    unpacked_contestants.map(insert_contestants)
+    val insert_date = Statements.insertDate(xa)(_)
 
     val contestant_names: Map[String, Int] = contestants.map((c: ContestantExtractor.ExtractionResult[Contestant]) => c match {
         case Valid(c: Contestant) => (c.first_name, c.contestant_id)
@@ -67,24 +66,44 @@ object Main extends App {
 
     val clue_elements: List[Element] = (doc >> elementList("td.clue"))
 
-    val extract_clue = ClueExtractor.extract_question(contestant_names, game_id, _ : Element)
+    val extract_clue = ClueExtractor.extract_regular_question(contestant_names, game_id, _ : Element)
 
     val clues = clue_elements.map(extract_clue)
 
+    val extract_final_jeopardy = ClueExtractor.extract_fj_question(contestant_names, game_id, clues.filter(_.isRight).length, _: Element)
+
     val invalid_extractions = clues.filter(_.isLeft)
 
-    if(invalid_extractions.length == 0 ||
-       invalid_extractions.map(_.left.get.string).forall(_ == "Cannot extract mouse over")) {
+    val fj = extract_final_jeopardy(doc >> element("table.final_round"))
+
+    val all_regular_are_valid = (invalid_extractions.length == 0 || 
+                                 invalid_extractions.map(_.left.get.string).forall(_ == "Cannot extract mouse over"))
+
+    if(all_regular_are_valid && fj.isRight) {
 
         val valid_extractions = clues.filter(_.isRight).map(_.right.get)
 
-        val turns = valid_extractions.flatMap(_._1)
-        val questions = valid_extractions.map(_._2)
+        val n_single_jeopardy = valid_extractions.filter{case (lt: List[Turn], q: Question) => !q.question_id.contains("DJ")}.length
+
+        val update_clue_number = Utility.update_clue_order_number(n_single_jeopardy)(_, _)
+
+        val extractions_updated_number = valid_extractions.map{case (lt: List[Turn], q: Question) => update_clue_number(lt, q)}
+                                                
+        val fj_turns = fj.right.get._1
+        val fj_question = fj.right.get._2
+
+        val turns = extractions_updated_number.flatMap(_._1)
+        val questions = extractions_updated_number.map(_._2)
+        
+        unpacked_contestants.map(insert_contestants)
+        insert_date(Date(game_id, args(3)))
 
         questions.map(insert_question)
         turns.map(insert_turn)
-       }
+        insert_question(fj_question)
+        fj_turns.map(insert_turn)
 
+       }
     else {
         throw new RuntimeException(" One invalid turn or question was found")
     }
