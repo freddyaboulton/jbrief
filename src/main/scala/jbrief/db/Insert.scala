@@ -72,5 +72,15 @@ object Statements {
         """.update.run.transact(xa).unsafeRunSync
     }
 
+    def insertDate(xa: transactor.Transactor.Aux[IO, Unit])(date: Date) = {
+        val game_id = date.game_id
+        val date_of_game = date.date
+        sql"""INSERT INTO date (date,
+                                game_id)
+                          values ($date_of_game,
+                                  $game_id)
+        """.update.run.transact(xa).unsafeRunSync
+    }
+
 
 }

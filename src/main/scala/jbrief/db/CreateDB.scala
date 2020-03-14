@@ -7,6 +7,7 @@ import cats._
 import cats.data._
 import cats.effect._
 import cats.implicits._
+import java.sql.Connection
 
 object CreateDB extends App {
 
@@ -17,10 +18,10 @@ object CreateDB extends App {
     // A transactor that gets connections from java.sql.DriverManager and executes blocking operations
     // on an our synchronous EC. See the chapter on connection handling for more info.
     val xa = Transactor.fromDriverManager[IO](
-    "org.postgresql.Driver",     // driver classname
-    "jdbc:postgresql:jbrief",     // connect URL (driver-specific)
-    "jbriefwriter",                  // user
-    "jbrief",                          // password
+    "org.postgresql.Driver", 
+    "jdbc:postgresql:jbrief",
+    "jbriefwriter",
+    "jbrief",
     )
 
     def drop(table_name: String) = sql"DROP TABLE IF EXISTS {$table_name}"
@@ -61,6 +62,14 @@ object CreateDB extends App {
         change_in_value REAL NOT NULL,
         FOREIGN KEY (game_id, question_id) REFERENCES question (game_id, question_id)
         );
+    """.update.run
+
+    val CreateDate: ConnectionIO[Int] = 
+    sql"""
+    CREATE TABLE date(
+        date VARCHAR PRIMARY KEY,
+        game_id INTEGER UNIQUE
+    );
     """.update.run
 
     sql"""DROP TABLE IF EXISTS contestant CASCADE""".update.run.transact(xa).unsafeRunSync
